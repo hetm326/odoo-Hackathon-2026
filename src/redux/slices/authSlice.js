@@ -9,6 +9,12 @@ export const loginUser = createAsyncThunk(
   async (credentials, { rejectWithValue }) => {
     try {
       const data = await ApiService.login(credentials);
+      if (data.token) {
+        localStorage.setItem('gt_token', data.token);
+      }
+      if (data.user) {
+        localStorage.setItem('gt_user', JSON.stringify(data.user));
+      }
       return data;
     } catch (err) {
       return rejectWithValue(err.message || 'Failed to login');
@@ -21,6 +27,12 @@ export const signupUser = createAsyncThunk(
   async (userData, { rejectWithValue }) => {
     try {
       const data = await ApiService.signup(userData);
+      if (data.token) {
+        localStorage.setItem('gt_token', data.token);
+      }
+      if (data.user) {
+        localStorage.setItem('gt_user', JSON.stringify(data.user));
+      }
       return data;
     } catch (err) {
       return rejectWithValue(err.message || 'Failed to signup');
@@ -31,16 +43,9 @@ export const signupUser = createAsyncThunk(
 const authSlice = createSlice({
   name: 'auth',
   initialState: {
-    user: savedUser || {
-      id: 'usr-1',
-      name: 'Alex Rivera',
-      email: 'alex@globetrotter.io',
-      avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=300&q=80',
-      homeCity: 'San Francisco, CA',
-      bio: 'Passionate world traveler and adventure seeker.',
-    },
-    token: savedToken || 'demo_token_123',
-    isAuthenticated: true,
+    user: savedUser || null,
+    token: savedToken || null,
+    isAuthenticated: !!savedToken && !!savedUser,
     loading: false,
     error: null,
   },
@@ -56,7 +61,18 @@ const authSlice = createSlice({
       state.error = null;
     },
     updateProfile: (state, action) => {
-      const updatedUser = { ...state.user, ...action.payload };
+      if (!state.user) {
+        state.user = {};
+      }
+      // Only update fields that are provided (not undefined or empty)
+      const updatedFields = {};
+      Object.keys(action.payload).forEach((key) => {
+        if (action.payload[key] !== undefined && action.payload[key] !== '') {
+          updatedFields[key] = action.payload[key];
+        }
+      });
+
+      const updatedUser = { ...state.user, ...updatedFields };
       state.user = updatedUser;
       localStorage.setItem('gt_user', JSON.stringify(updatedUser));
 
@@ -84,11 +100,12 @@ const authSlice = createSlice({
       .addCase(loginUser.fulfilled, (state, action) => {
         state.loading = false;
         state.isAuthenticated = true;
-        state.user = action.payload.user;
-        state.token = action.payload.token;
+        state.user = action.payload.user || null;
+        state.token = action.payload.token || null;
       })
       .addCase(loginUser.rejected, (state, action) => {
         state.loading = false;
+        state.isAuthenticated = false;
         state.error = action.payload;
       })
       // Signup
@@ -99,11 +116,12 @@ const authSlice = createSlice({
       .addCase(signupUser.fulfilled, (state, action) => {
         state.loading = false;
         state.isAuthenticated = true;
-        state.user = action.payload.user;
-        state.token = action.payload.token;
+        state.user = action.payload.user || null;
+        state.token = action.payload.token || null;
       })
       .addCase(signupUser.rejected, (state, action) => {
         state.loading = false;
+        state.isAuthenticated = false;
         state.error = action.payload;
       });
   },
