@@ -37,8 +37,7 @@ const authSlice = createSlice({
       email: 'alex@globetrotter.io',
       avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=300&q=80',
       homeCity: 'San Francisco, CA',
-      travelsCount: 14,
-      countriesVisited: 8,
+      bio: 'Passionate world traveler and adventure seeker.',
     },
     token: savedToken || 'demo_token_123',
     isAuthenticated: true,
@@ -57,8 +56,22 @@ const authSlice = createSlice({
       state.error = null;
     },
     updateProfile: (state, action) => {
-      state.user = { ...state.user, ...action.payload };
-      localStorage.setItem('gt_user', JSON.stringify(state.user));
+      const updatedUser = { ...state.user, ...action.payload };
+      state.user = updatedUser;
+      localStorage.setItem('gt_user', JSON.stringify(updatedUser));
+
+      try {
+        const users = JSON.parse(localStorage.getItem('gt_users')) || [];
+        const index = users.findIndex((u) => u.id === updatedUser.id || u.email === updatedUser.email);
+        if (index !== -1) {
+          users[index] = updatedUser;
+        } else {
+          users.push(updatedUser);
+        }
+        localStorage.setItem('gt_users', JSON.stringify(users));
+      } catch {
+        // localStorage fallback
+      }
     }
   },
   extraReducers: (builder) => {

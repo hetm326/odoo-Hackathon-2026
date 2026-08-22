@@ -1,9 +1,11 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Compass, MapPin, Calendar, PieChart, Search, Sparkles, UserCheck } from 'lucide-react';
+import { useAuth } from '../../hooks/customHooks';
+import { Compass, MapPin, Calendar, PieChart, Search, Sparkles, User } from 'lucide-react';
 
 export const Sidebar = () => {
   const location = useLocation();
+  const { user } = useAuth();
 
   const menuItems = [
     { name: 'Dashboard Overview', path: '/dashboard', icon: Compass },
@@ -15,7 +17,31 @@ export const Sidebar = () => {
 
   return (
     <aside className="w-64 shrink-0 hidden lg:block border-r border-slate-800/80 bg-slate-950/60 p-4 space-y-6">
-      <div className="px-3 py-2">
+      {/* Active User Card in Sidebar */}
+      {user && (
+        <Link
+          to="/profile"
+          className="flex items-center space-x-3 p-3 rounded-2xl bg-slate-900/80 border border-slate-800 hover:border-brand-500/40 transition group"
+        >
+          {user.avatar ? (
+            <img
+              src={user.avatar}
+              alt={user.name}
+              className="w-10 h-10 rounded-full object-cover border border-brand-500/50 group-hover:scale-105 transition"
+            />
+          ) : (
+            <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-brand-500 to-ocean-500 text-white font-bold text-sm flex items-center justify-center border border-brand-500/50 group-hover:scale-105 transition">
+              {user.name ? user.name[0].toUpperCase() : 'U'}
+            </div>
+          )}
+          <div className="overflow-hidden">
+            <h4 className="text-xs font-bold text-white truncate group-hover:text-brand-400 transition">{user.name}</h4>
+            <p className="text-[11px] text-slate-400 truncate">{user.email}</p>
+          </div>
+        </Link>
+      )}
+
+      <div className="px-3 py-1">
         <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Navigation Hub</h3>
       </div>
       <nav className="space-y-1.5">

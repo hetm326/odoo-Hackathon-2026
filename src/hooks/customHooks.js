@@ -24,12 +24,13 @@ export const useAuth = () => {
 export const useTrip = () => {
   const dispatch = useDispatch();
   const tripState = useSelector((state) => state.trips);
+  const user = useSelector((state) => state.auth.user);
 
   useEffect(() => {
-    if (tripState.trips.length === 0 && !tripState.loading) {
+    if (user?.id) {
       dispatch(fetchTrips());
     }
-  }, [dispatch, tripState.trips.length, tripState.loading]);
+  }, [dispatch, user?.id]);
 
   const selectTrip = (id) => dispatch(setSelectedTrip(id));
   const createTrip = (tripData) => dispatch(createNewTrip(tripData));

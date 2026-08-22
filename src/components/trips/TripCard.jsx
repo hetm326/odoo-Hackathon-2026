@@ -2,7 +2,7 @@ import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
 import { deleteTripById, setSelectedTrip } from '../../redux/slices/tripSlice';
-import { formatCurrency, formatDate, calculateSpentPercentage, getStatusBadgeColor } from '../../utils/helpers';
+import { formatCurrency, formatDate, calculateSpentPercentage, getStatusBadgeColor, getTripStatus } from '../../utils/helpers';
 import { Card, Badge, Button } from '../LoadingComponents';
 import { Calendar, DollarSign, MapPin, Trash2, Eye, Share2, ArrowRight } from 'lucide-react';
 
@@ -12,6 +12,7 @@ export const TripCard = ({ trip }) => {
 
   if (!trip) return null;
 
+  const effectiveStatus = getTripStatus(trip.startDate, trip.endDate, trip.status);
   const spentPercent = calculateSpentPercentage(trip.spentBudget, trip.totalBudget);
 
   const handleDelete = (e) => {
@@ -38,8 +39,8 @@ export const TripCard = ({ trip }) => {
         <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/20 to-transparent" />
         
         {/* Status Pill */}
-        <span className={`absolute top-3 left-3 px-3 py-1 rounded-full text-xs font-bold border backdrop-blur-md ${getStatusBadgeColor(trip.status)}`}>
-          {trip.status}
+        <span className={`absolute top-3 left-3 px-3 py-1 rounded-full text-xs font-bold border backdrop-blur-md ${getStatusBadgeColor(effectiveStatus)}`}>
+          {effectiveStatus}
         </span>
 
         {/* Delete Quick Button */}

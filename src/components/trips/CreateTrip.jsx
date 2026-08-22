@@ -4,6 +4,7 @@ import { useDispatch } from 'react-redux';
 import { createNewTrip } from '../../redux/slices/tripSlice';
 import { Input, Select, Button, AlertBanner, Card } from '../LoadingComponents';
 import { POPULAR_DESTINATIONS } from '../../utils/constants';
+import { getTripStatus } from '../../utils/helpers';
 import { Compass, Calendar, DollarSign, Image as ImageIcon, ArrowLeft, Check } from 'lucide-react';
 
 export const CreateTrip = () => {
@@ -49,6 +50,34 @@ export const CreateTrip = () => {
       title: `${dest.name} Getaway & Exploration`,
       coverImage: dest.image,
     });
+    setError('');
+  };
+
+  const handleNextStep = (targetStep) => {
+    if (targetStep === 2) {
+      if (!formData.title || !formData.destination) {
+        setError('Please fill in both Trip Title and Destination City/Country.');
+        return;
+      }
+    }
+
+    if (targetStep === 3) {
+      if (!formData.startDate || !formData.endDate) {
+        setError('Please select both Start Date and End Date.');
+        return;
+      }
+      if (new Date(formData.endDate) < new Date(formData.startDate)) {
+        setError('End date cannot be earlier than start date. Please select a valid date range.');
+        return;
+      }
+      if (Number(formData.totalBudget) <= 0) {
+        setError('Total budget limit must be a positive amount.');
+        return;
+      }
+    }
+
+    setError('');
+    setStep(targetStep);
   };
 
   const handleSubmit = async (e) => {
@@ -58,12 +87,19 @@ export const CreateTrip = () => {
       return;
     }
 
+    if (new Date(formData.endDate) < new Date(formData.startDate)) {
+      setError('End date cannot be earlier than start date.');
+      return;
+    }
+
     try {
+      const calculatedStatus = getTripStatus(formData.startDate, formData.endDate);
+
       const created = await dispatch(createNewTrip({
         ...formData,
         totalBudget: Number(formData.totalBudget) || 1000,
         spentBudget: 0,
-        status: 'Upcoming',
+        status: calculatedStatus,
       })).unwrap();
 
       navigate(`/trips/${created.id}`);
@@ -167,7 +203,7 @@ export const CreateTrip = () => {
             />
 
             <div className="flex justify-end pt-4">
-              <Button type="button" variant="primary" onClick={() => setStep(2)}>
+              <Button type="button" variant="primary" onClick={() => handleNextStep(2)}>
                 Next: Dates & Budget &rarr;
               </Button>
             </div>
@@ -190,6 +226,7 @@ export const CreateTrip = () => {
                 label="End Date *"
                 type="date"
                 name="endDate"
+                min={formData.startDate || ''}
                 value={formData.endDate}
                 onChange={handleChange}
                 required
@@ -210,7 +247,7 @@ export const CreateTrip = () => {
               <Button type="button" variant="secondary" onClick={() => setStep(1)}>
                 &larr; Back
               </Button>
-              <Button type="button" variant="primary" onClick={() => setStep(3)}>
+              <Button type="button" variant="primary" onClick={() => handleNextStep(3)}>
                 Next: Cover & Details &rarr;
               </Button>
             </div>

@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useTrip } from '../../hooks/customHooks';
 import { TripCard } from './TripCard';
 import { Button, Input, SkeletonLoader, Card } from '../LoadingComponents';
+import { getTripStatus } from '../../utils/helpers';
 import { MapPin, Plus, Search, Filter, Compass } from 'lucide-react';
 
 export const MyTrips = () => {
@@ -11,7 +12,8 @@ export const MyTrips = () => {
   const [searchQuery, setSearchQuery] = useState('');
 
   const filteredTrips = trips.filter((trip) => {
-    const matchesStatus = filterStatus === 'All' || trip.status === filterStatus;
+    const effectiveStatus = getTripStatus(trip.startDate, trip.endDate, trip.status);
+    const matchesStatus = filterStatus === 'All' || effectiveStatus === filterStatus;
     const matchesSearch =
       trip.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       trip.destination.toLowerCase().includes(searchQuery.toLowerCase());

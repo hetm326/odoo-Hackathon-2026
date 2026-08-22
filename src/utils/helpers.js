@@ -118,3 +118,102 @@ export const getCategoryMeta = (category) => {
       return { label: 'Miscellaneous', color: '#64748b', bg: 'bg-slate-500/20 text-slate-400' };
   }
 };
+
+// Known City-Country Mappings for Destinations without Explicit Country
+const CITY_TO_COUNTRY = {
+  paris: 'France',
+  tokyo: 'Japan',
+  kyoto: 'Japan',
+  bali: 'Indonesia',
+  'new york': 'USA',
+  nyc: 'USA',
+  rome: 'Italy',
+  goa: 'India',
+  london: 'UK',
+  barcelona: 'Spain',
+  sydney: 'Australia',
+  dubai: 'UAE',
+  berlin: 'Germany',
+  amsterdam: 'Netherlands',
+  venice: 'Italy',
+  santorini: 'Greece',
+};
+
+// Extract Country from Destination (e.g. "Paris, France" -> "France", "Tokyo" -> "Japan")
+export const extractCountry = (destination) => {
+  if (!destination) return '';
+  const trimmed = destination.trim();
+  if (trimmed.includes(',')) {
+    const parts = trimmed.split(',');
+    return parts[parts.length - 1].trim();
+  }
+  const lower = trimmed.toLowerCase();
+  if (CITY_TO_COUNTRY[lower]) {
+    return CITY_TO_COUNTRY[lower];
+  }
+  return capitalize(trimmed);
+};
+
+// Dynamically resolve trip status based on Start Date, End Date, and Current Date
+export const getTripStatus = (startDate, endDate, currentStatus = null) => {
+  if (currentStatus && ['cancelled', 'completed', 'ongoing', 'upcoming'].includes(currentStatus.toLowerCase())) {
+    // If explicitly set, respect current status unless dates clearly indicate completed past trip
+    if (currentStatus.toLowerCase() === 'completed') return 'Completed';
+  }
+
+  if (!startDate || !endDate) return 'Upcoming';
+
+  const todayStr = new Date().toISOString().split('T')[0];
+  const startStr = new Date(startDate).toISOString().split('T')[0];
+  const endStr = new Date(endDate).toISOString().split('T')[0];
+
+  if (endStr < todayStr) {
+    return 'Completed';
+  }
+  if (startStr <= todayStr && endStr >= todayStr) {
+    return 'Ongoing';
+  }
+  return 'Upcoming';
+};
+
+// Calculate User Trip Statistics Dynamically
+export const calculateUserStats = (trips = []) => {
+  const totalTrips = trips.length;
+  
+  // Unique countries visited
+  const countriesSet = new Set();
+  trips.forEach((trip) => {
+    const country = extractCountry(trip.destination || trip.country);
+    if (country) {
+      countriesSet.add(country.toLowerCase());
+    }
+  });
+
+  const countriesVisited = countriesSet.size;
+
+  // Active / Upcoming trips
+  const upcomingTrips = trips.filter((t) => {
+    const status = getTripStatus(t.startDate, t.endDate, t.status).toLowerCase();
+    return status === 'upcoming' || status === 'ongoing' || status === 'active';
+  }).length;
+
+  // Completed trips / adventures
+  const completedAdventures = trips.filter((t) => {
+    const status = getTripStatus(t.startDate, t.endDate, t.status).toLowerCase();
+    return status === 'completed';
+  }).length;
+
+  // Total budget allocated and spent
+  const totalBudget = trips.reduce((acc, t) => acc + (Number(t.totalBudget) || 0), 0);
+  const totalSpent = trips.reduce((acc, t) => acc + (Number(t.spentBudget) || 0), 0);
+
+  return {
+    totalTrips,
+    countriesVisited,
+    upcomingTrips,
+    completedAdventures,
+    totalBudget,
+    totalSpent,
+  };
+};
+

@@ -4,16 +4,15 @@ import { useAuth, useTrip } from '../../hooks/customHooks';
 import { StatCard, Button, Card, Badge, SkeletonLoader } from '../LoadingComponents';
 import { TripCard } from '../trips/TripCard';
 import { POPULAR_DESTINATIONS } from '../../utils/constants';
-import { formatCurrency } from '../../utils/helpers';
+import { formatCurrency, calculateUserStats } from '../../utils/helpers';
 import { Compass, MapPin, Calendar, DollarSign, Plus, ArrowRight, Sparkles, Globe, TrendingUp } from 'lucide-react';
 
 export const Dashboard = () => {
   const { user } = useAuth();
   const { trips, loading } = useTrip();
 
-  const totalSpent = trips.reduce((acc, t) => acc + (t.spentBudget || 0), 0);
-  const totalBudget = trips.reduce((acc, t) => acc + (t.totalBudget || 0), 0);
-  const upcomingTripsCount = trips.filter(t => t.status === 'Upcoming' || t.status === 'Ongoing').length;
+  // Calculate dynamic stats for currently authenticated user
+  const stats = calculateUserStats(trips);
 
   return (
     <div className="space-y-8 pb-12">
@@ -32,7 +31,7 @@ export const Dashboard = () => {
               Ready for your next adventure, <span className="text-gradient">{user?.name?.split(' ')[0] || 'Traveler'}</span>? ✈️
             </h1>
             <p className="text-xs sm:text-sm text-slate-300 max-w-xl">
-              You have <span className="text-brand-400 font-semibold">{upcomingTripsCount} active & upcoming trips</span> planned. Track itineraries, budgets, and explore cities effortlessly.
+              You have <span className="text-brand-400 font-semibold">{stats.upcomingTrips} active & upcoming trips</span> planned. Track itineraries, budgets, and explore cities effortlessly.
             </p>
           </div>
 
@@ -57,27 +56,27 @@ export const Dashboard = () => {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
         <StatCard
           title="Total Trips Created"
-          value={trips.length}
+          value={stats.totalTrips}
           icon={MapPin}
-          trend={`${upcomingTripsCount} Active Now`}
+          trend={`${stats.upcomingTrips} Active Now`}
         />
         <StatCard
           title="Total Budget Spent"
-          value={formatCurrency(totalSpent)}
+          value={formatCurrency(stats.totalSpent)}
           icon={DollarSign}
-          trend={`Allocated: ${formatCurrency(totalBudget)}`}
+          trend={`Allocated: ${formatCurrency(stats.totalBudget)}`}
         />
         <StatCard
           title="Countries Visited"
-          value={user?.countriesVisited || 8}
+          value={stats.countriesVisited}
           icon={Globe}
-          trend="World Explorer"
+          trend={stats.countriesVisited > 0 ? `${stats.countriesVisited} Unique Countries` : '0 Countries Visited'}
         />
         <StatCard
           title="Completed Adventures"
-          value={user?.travelsCount || 14}
+          value={stats.completedAdventures}
           icon={Calendar}
-          trend="Passport Stamped"
+          trend={stats.completedAdventures > 0 ? `${stats.completedAdventures} Completed` : '0 Completed'}
         />
       </div>
 
@@ -113,12 +112,12 @@ export const Dashboard = () => {
               <MapPin className="w-8 h-8 text-brand-400" />
             </div>
             <div className="space-y-1">
-              <h3 className="text-base font-bold text-white">No Trips Planned Yet</h3>
-              <p className="text-xs text-slate-400">Start by creating your first trip itinerary!</p>
+              <h3 className="text-base font-bold text-white">Your journey starts here.</h3>
+              <p className="text-xs text-slate-400">Create your first trip to start exploring destinations and managing budgets.</p>
             </div>
             <Link to="/trips/new">
               <Button variant="primary" size="sm">
-                Create First Trip
+                Create Your First Trip
               </Button>
             </Link>
           </Card>

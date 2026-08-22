@@ -36,20 +36,31 @@ api.interceptors.response.use(
 );
 
 // Helper Mock Storage Initializer
+const DEFAULT_DEMO_USER = {
+  id: 'usr-1',
+  name: 'Alex Rivera',
+  email: 'alex@globetrotter.io',
+  avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=300&q=80',
+  homeCity: 'San Francisco, CA',
+  bio: 'Passionate world traveler and adventure seeker.',
+};
+
 const initMockStorage = () => {
-  if (!localStorage.getItem('gt_trips')) {
-    localStorage.setItem('gt_trips', JSON.stringify(INITIAL_TRIPS));
+  if (!localStorage.getItem('gt_users')) {
+    localStorage.setItem('gt_users', JSON.stringify([DEFAULT_DEMO_USER]));
   }
+
   if (!localStorage.getItem('gt_user')) {
-    localStorage.setItem('gt_user', JSON.stringify({
-      id: 'usr-1',
-      name: 'Alex Rivera',
-      email: 'alex@globetrotter.io',
-      avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=300&q=80',
-      homeCity: 'San Francisco, CA',
-      travelsCount: 14,
-      countriesVisited: 8,
+    localStorage.setItem('gt_user', JSON.stringify(DEFAULT_DEMO_USER));
+  }
+
+  if (!localStorage.getItem('gt_trips')) {
+    const seededTrips = INITIAL_TRIPS.map((trip) => ({
+      ...trip,
+      userId: 'usr-1',
+      userEmail: 'alex@globetrotter.io',
     }));
+    localStorage.setItem('gt_trips', JSON.stringify(seededTrips));
   }
 };
 initMockStorage();
@@ -62,11 +73,29 @@ export const ApiService = {
       const response = await api.post('/auth/login', credentials);
       return response.data;
     } catch {
-      // Mock Fallback
-      const mockUser = JSON.parse(localStorage.getItem('gt_user'));
+      // Mock Fallback: Lookup in gt_users or create user session
+      const users = JSON.parse(localStorage.getItem('gt_users')) || [DEFAULT_DEMO_USER];
+      const targetEmail = (credentials.email || '').trim().toLowerCase();
+      let matchedUser = users.find((u) => u.email.toLowerCase() === targetEmail);
+
+      if (!matchedUser) {
+        // If logging in with new credentials in demo mode, auto-register
+        matchedUser = {
+          id: 'usr_' + Date.now(),
+          name: credentials.email ? credentials.email.split('@')[0] : 'Traveler',
+          email: credentials.email || 'user@globetrotter.io',
+          avatar: '',
+          homeCity: '',
+          bio: '',
+        };
+        users.push(matchedUser);
+        localStorage.setItem('gt_users', JSON.stringify(users));
+      }
+
       const mockToken = 'mock_jwt_token_' + Date.now();
       localStorage.setItem('gt_token', mockToken);
-      return { token: mockToken, user: mockUser };
+      localStorage.setItem('gt_user', JSON.stringify(matchedUser));
+      return { token: mockToken, user: matchedUser };
     }
   },
 
@@ -75,16 +104,30 @@ export const ApiService = {
       const response = await api.post('/auth/register', userData);
       return response.data;
     } catch {
-      // Mock Fallback
+      // Mock Fallback: Create new unique user
+      const users = JSON.parse(localStorage.getItem('gt_users')) || [DEFAULT_DEMO_USER];
+      const targetEmail = (userData.email || '').trim().toLowerCase();
+
+      let existingUser = users.find((u) => u.email.toLowerCase() === targetEmail);
+      if (existingUser) {
+        const mockToken = 'mock_jwt_token_' + Date.now();
+        localStorage.setItem('gt_token', mockToken);
+        localStorage.setItem('gt_user', JSON.stringify(existingUser));
+        return { token: mockToken, user: existingUser };
+      }
+
       const mockUser = {
         id: 'usr_' + Date.now(),
         name: userData.name || 'Traveler',
         email: userData.email,
-        avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=300&q=80',
-        homeCity: 'New York, USA',
-        travelsCount: 1,
-        countriesVisited: 1,
+        avatar: '',
+        homeCity: '',
+        bio: 'Enthusiastic explorer ready for new destinations.',
       };
+
+      users.push(mockUser);
+      localStorage.setItem('gt_users', JSON.stringify(users));
+
       const mockToken = 'mock_jwt_token_' + Date.now();
       localStorage.setItem('gt_token', mockToken);
       localStorage.setItem('gt_user', JSON.stringify(mockUser));
@@ -98,7 +141,9 @@ export const ApiService = {
       const response = await api.get('/trips');
       return response.data;
     } catch {
-      return JSON.parse(localStorage.getItem('gt_trips')) || INITIAL_TRIPS;
+      const currentUser = JSON.parse(localStorage.getItem('gt_user')) || DEFAULT_DEMO_USER;
+      const allTrips = JSON.parse(localStorage.getItem('gt_trips')) || [];
+      return allTrips.filter((t) => t.userId === currentUser.id || t.userEmail === currentUser.email);
     }
   },
 
@@ -107,11 +152,15 @@ export const ApiService = {
       const response = await api.post('/trips', tripData);
       return response.data;
     } catch {
-      const trips = JSON.parse(localStorage.getItem('gt_trips')) || INITIAL_TRIPS;
+      const currentUser = JSON.parse(localStorage.getItem('gt_user')) || DEFAULT_DEMO_USER;
+      const trips = JSON.parse(localStorage.getItem('gt_trips')) || [];
       const newTrip = {
         ...tripData,
         id: tripData.id || 'trip-' + Date.now(),
-        spentBudget: tripData.spentBudget || 0,
+        userId: currentUser.id,
+        userEmail: currentUser.email,
+        spentBudget: Number(tripData.spentBudget) || 0,
+        totalBudget: Number(tripData.totalBudget) || 2000,
         status: tripData.status || 'Upcoming',
         itineraryDays: tripData.itineraryDays || [],
         expenses: tripData.expenses || [],
@@ -126,8 +175,8 @@ export const ApiService = {
     try {
       await api.delete(`/trips/${id}`);
     } catch {
-      const trips = JSON.parse(localStorage.getItem('gt_trips')) || INITIAL_TRIPS;
-      const updated = trips.filter(t => t.id !== id);
+      const trips = JSON.parse(localStorage.getItem('gt_trips')) || [];
+      const updated = trips.filter((t) => t.id !== id);
       localStorage.setItem('gt_trips', JSON.stringify(updated));
     }
   },

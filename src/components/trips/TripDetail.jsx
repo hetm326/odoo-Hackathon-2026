@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
 import { setSelectedTrip, deleteTripById } from '../../redux/slices/tripSlice';
-import { formatDate, formatCurrency, calculateSpentPercentage, getStatusBadgeColor } from '../../utils/helpers';
+import { formatDate, formatCurrency, calculateSpentPercentage, getStatusBadgeColor, getTripStatus } from '../../utils/helpers';
 import { Card, Badge, Button, LoadingSpinner } from '../LoadingComponents';
 import { ItineraryBuilder } from '../itinerary/ItineraryBuilder';
 import { BudgetBreakdown } from '../budget/BudgetBreakdown';
@@ -44,6 +44,7 @@ export const TripDetail = () => {
     );
   }
 
+  const effectiveStatus = getTripStatus(trip.startDate, trip.endDate, trip.status);
   const spentPercent = calculateSpentPercentage(trip.spentBudget, trip.totalBudget);
 
   const handleDelete = () => {
@@ -89,8 +90,8 @@ export const TripDetail = () => {
           <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/60 to-transparent" />
 
           {/* Floating Pill */}
-          <span className={`absolute top-4 left-4 px-3 py-1 rounded-full text-xs font-bold border backdrop-blur-md ${getStatusBadgeColor(trip.status)}`}>
-            {trip.status}
+          <span className={`absolute top-4 left-4 px-3 py-1 rounded-full text-xs font-bold border backdrop-blur-md ${getStatusBadgeColor(effectiveStatus)}`}>
+            {effectiveStatus}
           </span>
 
           <div className="absolute bottom-6 left-6 right-6 space-y-2">

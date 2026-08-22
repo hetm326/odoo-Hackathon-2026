@@ -82,11 +82,17 @@ export const Navbar = () => {
                     onClick={() => setUserDropdown(!userDropdown)}
                     className="flex items-center space-x-2 p-1.5 rounded-full border border-slate-800 hover:border-slate-700 bg-slate-900/60 transition"
                   >
-                    <img
-                      src={user?.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=100&q=80'}
-                      alt={user?.name || 'User'}
-                      className="w-8 h-8 rounded-full object-cover border border-brand-500/50"
-                    />
+                    {user?.avatar ? (
+                      <img
+                        src={user.avatar}
+                        alt={user?.name || 'User'}
+                        className="w-8 h-8 rounded-full object-cover border border-brand-500/50"
+                      />
+                    ) : (
+                      <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-brand-500 to-ocean-500 text-white font-bold text-xs flex items-center justify-center border border-brand-500/50">
+                        {user?.name ? user.name[0].toUpperCase() : 'U'}
+                      </div>
+                    )}
                   </button>
 
                   {userDropdown && (
