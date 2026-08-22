@@ -9,8 +9,11 @@ import { Camera, Check, X, Upload } from 'lucide-react';
 export const Profile = () => {
   const dispatch = useDispatch();
   const { user } = useAuth();
+<<<<<<< Updated upstream
   const { trips } = useTrip();
 
+=======
+>>>>>>> Stashed changes
   const fileInputRef = useRef(null);
 
   const [formData, setFormData] = useState({
@@ -22,6 +25,7 @@ export const Profile = () => {
   });
 
   const [success, setSuccess] = useState('');
+<<<<<<< Updated upstream
   const [errorMsg, setErrorMsg] = useState('');
 
   // Calculate dynamic user stats based on actual trips
@@ -62,6 +66,38 @@ export const Profile = () => {
       setErrorMsg('Failed to process selected image.');
     };
     reader.readAsDataURL(file);
+=======
+  const [error, setError] = useState('');
+
+  const handleAvatarClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleAvatarChange = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Basic validation
+    if (!file.type.startsWith('image/')) {
+      setError('Please choose an image file.');
+      return;
+    }
+    const maxSizeMB = 5;
+    if (file.size > maxSizeMB * 1024 * 1024) {
+      setError(`Image must be smaller than ${maxSizeMB}MB.`);
+      return;
+    }
+
+    setError('');
+    const reader = new FileReader();
+    reader.onload = () => {
+      setFormData((prev) => ({ ...prev, avatar: reader.result }));
+    };
+    reader.onerror = () => {
+      setError('Could not read that file. Try a different image.');
+    };
+    reader.readAsDataURL(file); // converts to a base64 data URL for preview + storage
+>>>>>>> Stashed changes
   };
 
   const handleSubmit = (e) => {
@@ -101,6 +137,7 @@ export const Profile = () => {
       </div>
 
       {success && <AlertBanner type="success" message={success} onClose={() => setSuccess('')} />}
+<<<<<<< Updated upstream
       {errorMsg && <AlertBanner type="error" message={errorMsg} onClose={() => setErrorMsg('')} />}
 
       <Card className="space-y-6">
@@ -130,6 +167,41 @@ export const Profile = () => {
             <div className="absolute bottom-0 right-0 p-2 rounded-full bg-brand-500 text-white shadow-lg group-hover:scale-110 transition">
               <Camera className="w-4 h-4" />
             </div>
+=======
+      {error && <AlertBanner type="error" message={error} onClose={() => setError('')} />}
+
+      <Card className="space-y-6">
+        {/* Avatar Header */}
+        <div className="flex items-center space-x-5 pb-6 border-b border-slate-800">
+          <div className="relative">
+            <button
+              type="button"
+              onClick={handleAvatarClick}
+              className="block rounded-full focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2 focus:ring-offset-slate-900"
+              aria-label="Change profile picture"
+            >
+              <img
+                src={formData.avatar}
+                alt={formData.name}
+                className="w-20 h-20 rounded-full object-cover border-2 border-brand-500 shadow-xl"
+              />
+            </button>
+            <button
+              type="button"
+              onClick={handleAvatarClick}
+              className="absolute bottom-0 right-0 p-1.5 rounded-full bg-brand-500 text-white hover:bg-brand-600 transition-colors"
+              aria-label="Upload new profile picture"
+            >
+              <Camera className="w-3.5 h-3.5" />
+            </button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              onChange={handleAvatarChange}
+              className="hidden"
+            />
+>>>>>>> Stashed changes
           </div>
 
           <div className="space-y-2 text-center sm:text-left flex-1">
@@ -156,6 +228,13 @@ export const Profile = () => {
               <Badge variant="sky">{stats.totalTrips} Total Trips</Badge>
               <Badge variant="purple">{stats.completedAdventures} Completed</Badge>
             </div>
+            <button
+              type="button"
+              onClick={handleAvatarClick}
+              className="mt-2 text-xs font-semibold text-brand-400 hover:text-brand-300"
+            >
+              Change photo
+            </button>
           </div>
         </div>
 
@@ -187,6 +266,7 @@ export const Profile = () => {
             onChange={(e) => setFormData({ ...formData, homeCity: e.target.value })}
           />
 
+<<<<<<< Updated upstream
           <div className="space-y-1.5">
             <label className="block text-xs font-semibold text-slate-300">About / Travel Bio</label>
             <textarea
@@ -204,6 +284,10 @@ export const Profile = () => {
               <span>Cancel</span>
             </Button>
             <Button type="submit" variant="primary" size="md" className="space-x-2">
+=======
+          <div className="pt-4">
+            <Button type="submit" variant="primary" className="space-x-2">
+>>>>>>> Stashed changes
               <Check className="w-4 h-4" />
               <span>Save Profile Changes</span>
             </Button>
@@ -213,6 +297,10 @@ export const Profile = () => {
     </div>
   );
 };
+<<<<<<< Updated upstream
 
 export default Profile;
 
+=======
+export default Profile;
+>>>>>>> Stashed changes
