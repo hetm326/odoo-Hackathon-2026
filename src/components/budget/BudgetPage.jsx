@@ -15,7 +15,6 @@ export const BudgetPage = () => {
   const handleTripChange = (e) => {
     dispatch(setSelectedTrip(e.target.value));
   };
-
   if (trips.length === 0) {
     return (
       <Card className="text-center py-16 space-y-4">
