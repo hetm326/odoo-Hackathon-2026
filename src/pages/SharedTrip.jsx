@@ -1,0 +1,13 @@
+import React, { useEffect, useState } from "react";
+import { ArrowRight, CalendarDays, CheckCircle2, Globe2, MapPin, Wallet } from "lucide-react";
+import { useNavigate, useParams } from "react-router-dom";
+import { publicApi, getApiError } from "../services/api";
+const money=n=>`₹${Number(n||0).toLocaleString("en-IN")}`;
+export default function SharedTrip(){
+ const {token}=useParams();const navigate=useNavigate();const [trip,setTrip]=useState(null);const [loading,setLoading]=useState(true);
+ useEffect(()=>{publicApi.getSharedTrip(token).then(r=>setTrip(r.data)).catch(e=>alert(getApiError(e,"Shared trip not found."))).finally(()=>setLoading(false));},[token]);
+ if(loading)return <div className="empty-state"><p>Loading shared trip...</p></div>;
+ if(!trip)return <div className="empty-state"><h2>Shared trip not found</h2><button className="btn btn-primary" onClick={()=>navigate("/login")}>Go to login</button></div>;
+ const activities=(trip.stops||[]).flatMap(s=>s.activities||[]);const total=activities.reduce((n,a)=>n+Number(a.estimatedCost||0),0);
+ return <div className="public-page"><header className="public-nav"><div className="brand"><div className="brand-mark"><Globe2 size={21}/></div><strong>GlobeTrotter</strong></div><button className="btn btn-primary" onClick={()=>navigate("/login")}>Plan your own trip <ArrowRight size={16}/></button></header><div className="public-hero"><img src={trip.coverPhotoUrl || "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=1600&q=80"} alt={trip.name}/><div className="public-overlay"/><div className="public-title"><span>SHARED ITINERARY</span><h1>{trip.name}</h1><p>{trip.description}</p></div></div><div className="public-content"><div className="public-meta"><div><CalendarDays size={18}/><span>Dates<strong>{trip.startDate} — {trip.endDate}</strong></span></div><div><MapPin size={18}/><span>Route<strong>{(trip.stops||[]).map(s=>s.city?.name).join(" → ")}</strong></span></div><div><Wallet size={18}/><span>Estimated activity cost<strong>{money(total)}</strong></span></div></div><div className="section-head"><div><span className="eyebrow">THE JOURNEY</span><h2>Day-by-day itinerary</h2></div></div><div className="public-itinerary">{(trip.stops||[]).map((s,i)=><div className="public-stop" key={s.id}><div className="public-stop-head"><span>STOP {i+1}</span><h3>{s.city?.name}, {s.city?.country}</h3><small>{s.startDate} — {s.endDate}</small></div>{(s.activities||[]).map(a=><div className="public-activity" key={a.id}><CheckCircle2 size={18}/><div><strong>{a.activity?.name}</strong><span>{a.activity?.type} · {a.activity?.durationMinutes||0} min</span></div><b>{money(a.estimatedCost)}</b></div>)}</div>)}</div></div></div>;
+}
