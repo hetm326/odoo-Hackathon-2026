@@ -2,9 +2,14 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useDispatch } from 'react-redux';
 import { useAuth, useTrip } from '../../hooks/customHooks';
 import { updateProfile } from '../../redux/slices/authSlice';
-import { calculateUserStats } from '../../utils/helpers';
 import { Card, Input, Button, Badge, AlertBanner } from '../LoadingComponents';
-import { Camera, Check, X, Upload } from 'lucide-react';
+import {
+  User,
+  Camera,
+  Check,
+  X,
+  Upload,
+} from 'lucide-react';
 
 export const Profile = () => {
   const dispatch = useDispatch();
@@ -37,8 +42,9 @@ export const Profile = () => {
     }
   }, [user]);
 
-  // Calculate real statistics from trips
-  const stats = calculateUserStats(trips || []);
+  // Calculate statistics
+  const tripsCount = trips?.length || 0;
+  const countriesVisited = user?.countriesVisited || 0;
 
   // Open file picker
   const handlePhotoClick = () => {
@@ -51,7 +57,6 @@ export const Profile = () => {
 
     if (!file) return;
 
-    // Validate image type
     const validTypes = [
       'image/jpeg',
       'image/jpg',
@@ -60,14 +65,14 @@ export const Profile = () => {
     ];
 
     if (!validTypes.includes(file.type)) {
-      setErrorMsg('Invalid file type. Please upload a JPG, PNG, or WEBP image.');
+      setErrorMsg(
+        'Invalid file type. Please upload a JPG, PNG, or WEBP image.'
+      );
 
-      // Reset input so the same file can be selected again
       e.target.value = '';
       return;
     }
 
-    // Validate file size - maximum 5 MB
     const MAX_SIZE = 5 * 1024 * 1024;
 
     if (file.size > MAX_SIZE) {
@@ -81,7 +86,6 @@ export const Profile = () => {
 
     setErrorMsg('');
 
-    // Convert selected image to Base64 for preview/storage
     const reader = new FileReader();
 
     reader.onloadend = () => {
@@ -106,6 +110,11 @@ export const Profile = () => {
 
     setErrorMsg('');
     setSuccess('');
+
+    if (!formData.name.trim()) {
+      setErrorMsg('Please enter your name.');
+      return;
+    }
 
     try {
       dispatch(updateProfile(formData));
@@ -134,13 +143,12 @@ export const Profile = () => {
     setErrorMsg('');
     setSuccess('');
 
-    // Reset file input
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
   };
 
-  // Generate initials when no profile photo exists
+  // Generate initials
   const getInitials = (name) => {
     if (!name) return 'U';
 
@@ -155,6 +163,7 @@ export const Profile = () => {
 
   return (
     <div className="max-w-3xl mx-auto py-8 px-4 space-y-8">
+
       {/* Page Header */}
       <div className="space-y-1">
         <h1 className="text-3xl font-black text-white">
@@ -185,6 +194,7 @@ export const Profile = () => {
       )}
 
       <Card className="space-y-6">
+
         {/* Hidden File Input */}
         <input
           ref={fileInputRef}
@@ -199,6 +209,7 @@ export const Profile = () => {
 
           {/* Avatar */}
           <div className="relative group">
+
             <button
               type="button"
               onClick={handlePhotoClick}
@@ -227,11 +238,14 @@ export const Profile = () => {
             >
               <Camera className="w-4 h-4" />
             </button>
+
           </div>
 
           {/* Profile Information */}
           <div className="space-y-2 text-center sm:text-left flex-1">
+
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+
               <div>
                 <h3 className="text-xl font-bold text-white">
                   {formData.name || 'Traveler'}
@@ -252,24 +266,22 @@ export const Profile = () => {
                 <Upload className="w-3.5 h-3.5" />
                 <span>Change Photo</span>
               </Button>
+
             </div>
 
             {/* Dynamic Stats */}
             <div className="flex flex-wrap justify-center sm:justify-start gap-2 pt-1">
+
               <Badge variant="brand">
-                {stats?.countriesVisited || 0} Countries Visited
+                {countriesVisited} Countries Visited
               </Badge>
 
               <Badge variant="sky">
-                {stats?.totalTrips || 0} Total Trips
+                {tripsCount} Total Trips
               </Badge>
 
-              <Badge variant="purple">
-                {stats?.completedAdventures || 0} Completed
-              </Badge>
             </div>
 
-            {/* Mobile-friendly change photo link */}
             <button
               type="button"
               onClick={handlePhotoClick}
@@ -277,13 +289,16 @@ export const Profile = () => {
             >
               Change photo
             </button>
+
           </div>
         </div>
 
         {/* Profile Form */}
         <form onSubmit={handleSubmit} className="space-y-4">
+
           {/* Name + Email */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+
             <Input
               label="Full Name"
               type="text"
@@ -294,6 +309,7 @@ export const Profile = () => {
                   name: e.target.value,
                 }))
               }
+              placeholder="Enter your full name"
               required
             />
 
@@ -307,15 +323,16 @@ export const Profile = () => {
                   email: e.target.value,
                 }))
               }
+              placeholder="your@email.com"
               required
             />
+
           </div>
 
           {/* Home City */}
           <Input
             label="Home City"
             type="text"
-            placeholder="e.g. San Francisco, CA"
             value={formData.homeCity}
             onChange={(e) =>
               setFormData((prev) => ({
@@ -323,10 +340,12 @@ export const Profile = () => {
                 homeCity: e.target.value,
               }))
             }
+            placeholder="e.g. Ahmedabad, Gujarat"
           />
 
           {/* Bio */}
           <div className="space-y-1.5">
+
             <label className="block text-xs font-semibold text-slate-300">
               About / Travel Bio
             </label>
@@ -343,10 +362,12 @@ export const Profile = () => {
               placeholder="Tell other travelers about your favorite destinations and travel goals..."
               className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500 transition"
             />
+
           </div>
 
           {/* Action Buttons */}
           <div className="flex items-center justify-end space-x-3 pt-4 border-t border-slate-800">
+
             <Button
               type="button"
               variant="secondary"
@@ -365,11 +386,15 @@ export const Profile = () => {
               className="space-x-2"
             >
               <Check className="w-4 h-4" />
-              <span>Save Profile Changes</span>
+              <span>Save Changes</span>
             </Button>
+
           </div>
+
         </form>
+
       </Card>
+
     </div>
   );
 };
