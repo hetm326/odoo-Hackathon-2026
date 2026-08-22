@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useDispatch } from 'react-redux';
 import { useAuth, useTrip } from '../../hooks/customHooks';
 import { updateProfile } from '../../redux/slices/authSlice';
@@ -23,6 +23,18 @@ export const Profile = () => {
     bio: user?.bio || '',
     avatar: user?.avatar || '',
   });
+
+  useEffect(() => {
+    if (user) {
+      setFormData({
+        name: user.name || '',
+        email: user.email || '',
+        homeCity: user.homeCity || '',
+        bio: user.bio || '',
+        avatar: user.avatar || '',
+      });
+    }
+  }, [user]);
 
   const [success, setSuccess] = useState('');
 <<<<<<< Updated upstream

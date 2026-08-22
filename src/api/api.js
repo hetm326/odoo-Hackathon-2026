@@ -50,10 +50,6 @@ const initMockStorage = () => {
     localStorage.setItem('gt_users', JSON.stringify([DEFAULT_DEMO_USER]));
   }
 
-  if (!localStorage.getItem('gt_user')) {
-    localStorage.setItem('gt_user', JSON.stringify(DEFAULT_DEMO_USER));
-  }
-
   if (!localStorage.getItem('gt_trips')) {
     const seededTrips = INITIAL_TRIPS.map((trip) => ({
       ...trip,

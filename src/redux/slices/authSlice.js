@@ -45,7 +45,7 @@ const authSlice = createSlice({
   initialState: {
     user: savedUser || null,
     token: savedToken || null,
-    isAuthenticated: !!savedToken && !!savedUser,
+    isAuthenticated: !!(savedToken && savedUser),
     loading: false,
     error: null,
   },
