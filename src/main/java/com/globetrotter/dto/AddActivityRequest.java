@@ -8,4 +8,7 @@ public record AddActivityRequest(
     LocalTime startTime,
     Double estimatedCost,
     Integer activityOrder
-) {}
+) {
+
+
+}
