@@ -8,8 +8,8 @@ export const useAuth = () => {
   const dispatch = useDispatch();
   const authState = useSelector((state) => state.auth);
 
-  const login = (credentials) => dispatch(loginUser(credentials));
-  const signup = (userData) => dispatch(signupUser(userData));
+  const login = (credentials) => dispatch(loginUser(credentials)).unwrap();
+  const signup = (userData) => dispatch(signupUser(userData)).unwrap();
   const handleLogout = () => dispatch(logout());
 
   return {

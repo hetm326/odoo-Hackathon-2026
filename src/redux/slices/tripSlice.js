@@ -87,6 +87,35 @@ const tripSlice = createSlice({
         }
         localStorage.setItem('gt_trips', JSON.stringify(state.trips));
       }
+    },
+    removeExpenseFromTrip: (state, action) => {
+      const { tripId, expenseId } = action.payload;
+      const trip = state.trips.find(t => t.id === tripId);
+      if (trip && trip.expenses) {
+        const foundExp = trip.expenses.find(e => e.id === expenseId);
+        if (foundExp) {
+          trip.spentBudget = Math.max(0, (trip.spentBudget || 0) - Number(foundExp.amount));
+          trip.expenses = trip.expenses.filter(e => e.id !== expenseId);
+          if (state.selectedTrip?.id === tripId) {
+            state.selectedTrip = { ...trip };
+          }
+          localStorage.setItem('gt_trips', JSON.stringify(state.trips));
+        }
+      }
+    },
+    removeStopFromItinerary: (state, action) => {
+      const { tripId, dayNumber, stopId } = action.payload;
+      const trip = state.trips.find(t => t.id === tripId);
+      if (trip && trip.itineraryDays) {
+        const dayObj = trip.itineraryDays.find(d => d.day === dayNumber);
+        if (dayObj && dayObj.stops) {
+          dayObj.stops = dayObj.stops.filter(s => s.id !== stopId);
+          if (state.selectedTrip?.id === tripId) {
+            state.selectedTrip = { ...trip };
+          }
+          localStorage.setItem('gt_trips', JSON.stringify(state.trips));
+        }
+      }
     }
   },
   extraReducers: (builder) => {
@@ -127,7 +156,9 @@ export const {
   setStatusFilter,
   setSearchQuery,
   addExpenseToTrip,
-  addStopToItinerary
+  addStopToItinerary,
+  removeExpenseFromTrip,
+  removeStopFromItinerary
 } = tripSlice.actions;
 
 export default tripSlice.reducer;

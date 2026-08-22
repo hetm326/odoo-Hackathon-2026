@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
 import { createNewTrip } from '../../redux/slices/tripSlice';
 import { Input, Select, Button, AlertBanner, Card } from '../LoadingComponents';
@@ -8,6 +8,7 @@ import { Compass, Calendar, DollarSign, Image as ImageIcon, ArrowLeft, Check } f
 
 export const CreateTrip = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const dispatch = useDispatch();
 
   const [step, setStep] = useState(1);
@@ -21,6 +22,20 @@ export const CreateTrip = () => {
     description: '',
   });
   const [error, setError] = useState('');
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const dest = params.get('destination');
+    if (dest) {
+      const match = POPULAR_DESTINATIONS.find(d => `${d.name}, ${d.country}`.toLowerCase() === dest.toLowerCase() || d.name.toLowerCase() === dest.toLowerCase());
+      setFormData(prev => ({
+        ...prev,
+        destination: dest,
+        title: `${dest.split(',')[0]} Getaway & Exploration`,
+        coverImage: match?.image || prev.coverImage,
+      }));
+    }
+  }, [location.search]);
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });

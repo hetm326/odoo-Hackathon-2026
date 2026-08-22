@@ -1,11 +1,9 @@
-@tailwindcss base;
-@tailwindcss components;
-@tailwindcss utilities;
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
-@layer base {
-  body {
-    @apply bg-slate-950 text-slate-100 min-h-screen font-sans;
-  }
+body {
+  @apply bg-slate-950 text-slate-100 min-h-screen font-sans;
 }
 
 /* Custom Glassmorphism & Visual Enhancements */
