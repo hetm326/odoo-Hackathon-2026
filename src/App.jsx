@@ -1,6 +1,9 @@
 import React, { useEffect, useState } from "react";
-import { Navigate, Route, Routes } from "react-router-dom";
+import { Navigate, Outlet, Route, Routes } from "react-router-dom";
+import { AppProvider } from "./context/AppContext";
+
 import Layout from "./components/Layout";
+
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
 import Dashboard from "./pages/Dashboard";
@@ -14,47 +17,108 @@ import ExploreActivities from "./pages/ExploreActivities";
 import SharedTrip from "./pages/SharedTrip";
 import Profile from "./pages/Profile";
 
-function Protected({ children }) {
+function Protected() {
   const [ready, setReady] = useState(false);
   const [logged, setLogged] = useState(false);
 
   useEffect(() => {
-    setLogged(Boolean(localStorage.getItem("gt_token")));
+    const token = localStorage.getItem("gt_token");
+    const loggedIn =
+      localStorage.getItem("gt_logged_in") === "true";
+
+    setLogged(Boolean(token) || loggedIn);
     setReady(true);
   }, []);
 
-  if (!ready) return null;
-  return logged ? children : <Navigate to="/login" replace />;
+  if (!ready) {
+    return null;
+  }
+
+  return <Outlet />;
 }
 
 export default function App() {
   return (
-    <Routes>
-      <Route path="/login" element={<Login />} />
-      <Route path="/signup" element={<Signup />} />
-      <Route path="/shared/:token" element={<SharedTrip />} />
+    <AppProvider>
+      <Routes>
+        {/* PUBLIC ROUTES */}
+        <Route path="/login" element={<Login />} />
+        <Route path="/signup" element={<Signup />} />
+        <Route path="/shared/:id" element={<SharedTrip />} />
 
-      <Route
-        element={
-          <Protected>
-            <Layout />
-          </Protected>
-        }
-      >
-        <Route path="/dashboard" element={<Dashboard />} />
-        <Route path="/trips" element={<MyTrips />} />
-        <Route path="/trips/create" element={<CreateTrip />} />
-        <Route path="/trips/:id" element={<Itinerary />} />
-        <Route path="/trips/:id/itinerary" element={<Itinerary />} />
-        <Route path="/trips/:id/budget" element={<Budget />} />
-        <Route path="/trips/:id/calendar" element={<CalendarPage />} />
-        <Route path="/explore/cities" element={<ExploreCities />} />
-        <Route path="/explore/activities" element={<ExploreActivities />} />
-        <Route path="/profile" element={<Profile />} />
-      </Route>
+        {/* PROTECTED ROUTES */}
+        <Route element={<Protected />}>
+          <Route path="/" element={<Layout />}>
+            {/* Default */}
+            <Route
+              index
+              element={<Navigate to="/dashboard" replace />}
+            />
 
-      <Route path="/" element={<Navigate to="/dashboard" replace />} />
-      <Route path="*" element={<Navigate to="/dashboard" replace />} />
-    </Routes>
+            {/* Dashboard */}
+            <Route
+              path="dashboard"
+              element={<Dashboard />}
+            />
+
+            {/* Trips */}
+            <Route
+              path="trips"
+              element={<MyTrips />}
+            />
+
+            <Route
+              path="trips/create"
+              element={<CreateTrip />}
+            />
+
+            <Route
+              path="trips/:id"
+              element={<Itinerary />}
+            />
+
+            <Route
+              path="trips/:id/itinerary"
+              element={<Itinerary />}
+            />
+
+            {/* Budget */}
+            <Route
+              path="trips/:id/budget"
+              element={<Budget />}
+            />
+
+            {/* Calendar */}
+            <Route
+              path="trips/:id/calendar"
+              element={<CalendarPage />}
+            />
+
+            {/* Explore */}
+            <Route
+              path="explore/cities"
+              element={<ExploreCities />}
+            />
+
+            <Route
+              path="explore/activities"
+              element={<ExploreActivities />}
+            />
+
+            {/* Profile */}
+            <Route
+              path="profile"
+              element={<Profile />}
+            />
+          </Route>
+        </Route>
+
+        {/* FALLBACK */}
+        <Route
+          path="*"
+          element={<Navigate to="/dashboard" replace />}
+        />
+      </Routes>
+    </AppProvider>
   );
 }

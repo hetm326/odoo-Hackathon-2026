@@ -10,6 +10,7 @@ import {
   Wallet,
 } from "lucide-react";
 import { useNavigate, useParams } from "react-router-dom";
+
 import Modal from "../components/Modal";
 import {
   tripApi,
@@ -18,7 +19,8 @@ import {
   getApiError,
 } from "../services/api";
 
-const money = (n) => `₹${Number(n || 0).toLocaleString("en-IN")}`;
+const money = (value) =>
+  `₹${Number(value || 0).toLocaleString("en-IN")}`;
 
 export default function Itinerary() {
   const { id } = useParams();
@@ -32,163 +34,322 @@ export default function Itinerary() {
   const [activityStop, setActivityStop] = useState(null);
 
   const [loading, setLoading] = useState(true);
-  const [shareUrl, setShareUrl] = useState("");
   const [budget, setBudget] = useState(null);
+  const [shareUrl, setShareUrl] = useState("");
 
-  // Load trip, cities and activities
+  // =========================
+  // NORMALIZE API RESPONSE
+  // =========================
+  const getArray = (data) => {
+    if (Array.isArray(data)) return data;
+
+    if (Array.isArray(data?.content)) {
+      return data.content;
+    }
+
+    if (Array.isArray(data?.data)) {
+      return data.data;
+    }
+
+    return [];
+  };
+
+  // =========================
+  // LOAD TRIP DATA
+  // =========================
   const load = async () => {
     try {
       setLoading(true);
 
-      const [{ data: tripData }, { data: citiesData }, { data: activitiesData }] =
+      const [tripResponse, citiesResponse, activitiesResponse] =
         await Promise.all([
           tripApi.get(id),
           searchApi.cities(""),
           searchApi.activities({}),
         ]);
 
-      setTrip(tripData);
-      setCities(citiesData || []);
-      setActivities(activitiesData || []);
+      setTrip(tripResponse.data);
+
+      setCities(getArray(citiesResponse.data));
+
+      setActivities(getArray(activitiesResponse.data));
     } catch (error) {
-      alert(getApiError(error, "Unable to load trip."));
+      console.error("Load error:", error);
+
+      alert(
+        getApiError(
+          error,
+          "Unable to load trip."
+        )
+      );
     } finally {
       setLoading(false);
     }
   };
 
+  // =========================
+  // LOAD BUDGET
+  // =========================
+  const loadBudget = async () => {
+    try {
+      const response = await tripApi.getBudget(id);
+      setBudget(response.data);
+    } catch (error) {
+      console.log("Budget not available:", error);
+      setBudget(null);
+    }
+  };
+
+  // =========================
+  // INITIAL LOAD
+  // =========================
   useEffect(() => {
-    load();
+    if (id) {
+      load();
+      loadBudget();
+    }
   }, [id]);
 
-  // Load trip budget
-  useEffect(() => {
-    if (!id) return;
-
-    tripApi
-      .getBudget(id)
-      .then((response) => {
-        setBudget(response.data);
-      })
-      .catch(() => {
-        setBudget(null);
-      });
-  }, [id]);
-
-  // Cities not already added to trip
+  // =========================
+  // AVAILABLE CITIES
+  // =========================
   const availableCities = useMemo(() => {
+    if (!Array.isArray(cities)) return [];
+
+    const existingCityIds = (trip?.stops || [])
+      .map((stop) => stop?.city?.id)
+      .filter(Boolean);
+
     return cities.filter(
-      (city) =>
-        !(trip?.stops || []).some(
-          (stop) => stop.city?.id === city.id
-        )
+      (city) => !existingCityIds.includes(city.id)
     );
   }, [cities, trip]);
 
-  // Calculate total activity cost
+  // =========================
+  // ACTIVITY TOTAL
+  // =========================
   const activityTotal = useMemo(() => {
     return (trip?.stops || []).reduce(
-      (total, stop) =>
-        total +
-        (stop.activities || []).reduce(
-          (activityTotal, activity) =>
-            activityTotal +
-            Number(
-              activity.estimatedCost ||
-                activity.activity?.estimatedCost ||
-                0
-            ),
+      (total, stop) => {
+        const stopTotal = (stop.activities || []).reduce(
+          (sum, item) => {
+            return (
+              sum +
+              Number(
+                item?.estimatedCost ??
+                  item?.activity?.estimatedCost ??
+                  0
+              )
+            );
+          },
           0
-        ),
+        );
+
+        return total + stopTotal;
+      },
       0
     );
   }, [trip]);
 
-  const totalBudget = Number(budget?.totalBudget || 0);
+  const totalBudget = Number(
+    budget?.totalBudget ??
+      budget?.budget ??
+      budget?.amount ??
+      0
+  );
 
-  const budgetPercentage = totalBudget
-    ? Math.min(100, (activityTotal / totalBudget) * 100)
-    : 0;
+  // =========================
+  // ADD DESTINATION
+  // =========================
+ const addStop = async (city) => {
+  try {
+    const order = (trip?.stops?.length || 0) + 1;
 
-  // Add destination
-  const addStop = async (city) => {
-    try {
-      const order = (trip.stops?.length || 0) + 1;
+    const payload = {
+      cityId: city.id,
+      startDate: trip.startDate,
+      endDate: trip.endDate,
+      stopOrder: order,
+    };
 
-      await tripApi.addStop(id, {
-        cityId: city.id,
-        startDate: trip.startDate,
-        endDate: trip.endDate,
-        stopOrder: order,
-      });
+    console.log("ADD STOP URL:", `/trips/${id}/stops`);
+    console.log("ADD STOP PAYLOAD:", payload);
+    console.log("TRIP DATA:", trip);
 
-      setCityOpen(false);
-      await load();
-    } catch (error) {
+    const response = await tripApi.addStop(id, payload);
+
+    console.log("ADD STOP SUCCESS:", response.data);
+
+    setCityOpen(false);
+    await load();
+  } catch (error) {
+    console.error("ADD STOP ERROR:", error.response?.data || error);
+
+    const backendData = error.response?.data;
+
+    if (backendData?.errors) {
+      alert(JSON.stringify(backendData.errors, null, 2));
+    } else if (backendData?.message) {
+      alert(backendData.message);
+    } else {
       alert(getApiError(error, "Unable to add destination."));
     }
-  };
+  }
+};
 
-  // Remove destination
+  // =========================
+  // REMOVE DESTINATION
+  // =========================
   const removeStop = async (stopId) => {
-    if (!window.confirm("Remove this destination?")) return;
+    const confirmed = window.confirm(
+      "Remove this destination?"
+    );
+
+    if (!confirmed) return;
 
     try {
       await tripApi.deleteStop(id, stopId);
+
       await load();
     } catch (error) {
-      alert(getApiError(error));
+      alert(
+        getApiError(
+          error,
+          "Unable to remove destination."
+        )
+      );
     }
   };
 
-  // Add activity
+  // =========================
+  // ADD ACTIVITY
+  // =========================
   const addActivity = async (stop, activity) => {
     try {
-      await tripApi.addActivity(id, stop.id, {
+      if (!stop?.id || !activity?.id) {
+        alert("Invalid activity selected.");
+        return;
+      }
+
+      const activityOrder =
+        (stop.activities?.length || 0) + 1;
+
+      const data = {
         activityId: activity.id,
-        activityDate: stop.startDate,
+        activityDate:
+          stop.startDate || trip.startDate,
         startTime: "10:00:00",
-        estimatedCost: activity.estimatedCost,
-        activityOrder: (stop.activities?.length || 0) + 1,
-      });
+        estimatedCost:
+          activity.estimatedCost || 0,
+        activityOrder: activityOrder,
+      };
+
+      console.log("Adding activity:", data);
+
+      await tripApi.addActivity(
+        id,
+        stop.id,
+        data
+      );
 
       setActivityStop(null);
+
       await load();
     } catch (error) {
-      alert(getApiError(error, "Unable to add activity."));
+      console.error(
+        "Add activity error:",
+        error?.response?.data || error
+      );
+
+      alert(
+        getApiError(
+          error,
+          "Unable to add activity."
+        )
+      );
     }
   };
 
-  // Remove activity
+  // =========================
+  // REMOVE ACTIVITY
+  // =========================
   const removeActivity = async (activityId) => {
-    if (!window.confirm("Remove this activity?")) return;
+    const confirmed = window.confirm(
+      "Remove this activity?"
+    );
+
+    if (!confirmed) return;
 
     try {
-      await tripApi.deleteActivity(id, activityId);
-      await load();
-    } catch (error) {
-      alert(getApiError(error));
-    }
-  };
-
-  // Share trip
-  const share = async () => {
-    try {
-      await tripApi.share(id);
-
-      const { data } = await publicApi.createShare(id);
-
-      setShareUrl(
-        `${window.location.origin}/shared/${data.token}`
+      await tripApi.deleteActivity(
+        id,
+        activityId
       );
 
       await load();
     } catch (error) {
-      alert(getApiError(error, "Unable to share trip."));
+      alert(
+        getApiError(
+          error,
+          "Unable to remove activity."
+        )
+      );
     }
   };
 
-  // Loading state
+  // =========================
+  // SHARE TRIP
+  // =========================
+  const shareTrip = async () => {
+    try {
+      await tripApi.share(id);
+
+      const response =
+        await publicApi.createShare(id);
+
+      const token =
+        response.data?.token ||
+        response.data?.shareToken;
+
+      if (token) {
+        setShareUrl(
+          `${window.location.origin}/shared/${token}`
+        );
+      } else {
+        alert("Trip shared successfully.");
+      }
+
+      await load();
+    } catch (error) {
+      alert(
+        getApiError(
+          error,
+          "Unable to share trip."
+        )
+      );
+    }
+  };
+
+  // =========================
+  // FILTER ACTIVITIES BY CITY
+  // =========================
+  const cityActivities = useMemo(() => {
+    if (!Array.isArray(activities)) return [];
+
+    const cityId = activityStop?.city?.id;
+
+    if (!cityId) return activities;
+
+    return activities.filter(
+      (activity) =>
+        activity?.city?.id === cityId ||
+        activity?.cityId === cityId
+    );
+  }, [activities, activityStop]);
+
+  // =========================
+  // LOADING
+  // =========================
   if (loading) {
     return (
       <div className="empty-state">
@@ -197,7 +358,9 @@ export default function Itinerary() {
     );
   }
 
-  // Trip not found
+  // =========================
+  // TRIP NOT FOUND
+  // =========================
   if (!trip) {
     return (
       <div className="empty-state">
@@ -213,9 +376,12 @@ export default function Itinerary() {
     );
   }
 
+  // =========================
+  // JSX
+  // =========================
   return (
     <div>
-      {/* ================= HEADER ================= */}
+      {/* HEADER */}
       <div className="trip-detail-head">
         <div>
           <button
@@ -226,41 +392,29 @@ export default function Itinerary() {
           </button>
 
           <div>
-            <span className="eyebrow">ITINERARY BUILDER</span>
+            <span className="eyebrow">
+              ITINERARY BUILDER
+            </span>
 
             <h1>{trip.name}</h1>
 
             <p>
               <CalendarDays size={15} />
+              {" "}
               {trip.startDate} — {trip.endDate}
             </p>
           </div>
         </div>
 
-        {/* Action Buttons */}
         <div className="head-actions">
-
-          {/* Share */}
           <button
             className="btn btn-secondary"
-            onClick={share}
+            onClick={shareTrip}
           >
             <Share2 size={17} />
             Share
           </button>
 
-          {/* Calendar - NEW */}
-          <button
-            className="btn btn-secondary"
-            onClick={() =>
-              navigate(`/trips/${id}/calendar`)
-            }
-          >
-            <CalendarDays size={17} />
-            Calendar
-          </button>
-
-          {/* Budget */}
           <button
             className="btn btn-primary"
             onClick={() =>
@@ -273,13 +427,13 @@ export default function Itinerary() {
         </div>
       </div>
 
-      {/* ================= SHARE LINK ================= */}
+      {/* SHARE URL */}
       {shareUrl && (
         <div
           className="card"
           style={{ margin: "15px 0" }}
         >
-          <strong>Share link:</strong>{" "}
+          <strong>Share link: </strong>
 
           <a
             href={shareUrl}
@@ -292,12 +446,9 @@ export default function Itinerary() {
         </div>
       )}
 
-      {/* ================= TRIP SUMMARY ================= */}
+      {/* SUMMARY */}
       <div className="trip-summary-grid">
-
         <div className="summary-main">
-
-          {/* Route */}
           <div className="summary-route">
             <span className="summary-label">
               YOUR ROUTE
@@ -307,32 +458,36 @@ export default function Itinerary() {
               {trip.stops?.length ? (
                 trip.stops.map((stop, index) => (
                   <React.Fragment key={stop.id}>
-                    <strong>{stop.city?.name}</strong>
+                    <strong>
+                      {stop.city?.name}
+                    </strong>
 
-                    {index < trip.stops.length - 1 && (
+                    {index <
+                      trip.stops.length - 1 && (
                       <span>→</span>
                     )}
                   </React.Fragment>
                 ))
               ) : (
-                <span>Add your first destination</span>
+                <span>
+                  Add your first destination
+                </span>
               )}
             </div>
           </div>
 
-          {/* Numbers */}
           <div className="summary-numbers">
-
             <div>
               <span>Destinations</span>
-              <strong>{trip.stops?.length || 0}</strong>
+              <strong>
+                {trip.stops?.length || 0}
+              </strong>
             </div>
 
             <div>
               <span>Activities</span>
-
               <strong>
-                {trip.stops?.reduce(
+                {(trip.stops || []).reduce(
                   (total, stop) =>
                     total +
                     (stop.activities?.length || 0),
@@ -343,18 +498,21 @@ export default function Itinerary() {
 
             <div>
               <span>Activity cost</span>
-              <strong>{money(activityTotal)}</strong>
+              <strong>
+                {money(activityTotal)}
+              </strong>
             </div>
 
             <div>
               <span>Budget</span>
-              <strong>{money(totalBudget)}</strong>
+              <strong>
+                {money(totalBudget)}
+              </strong>
             </div>
-
           </div>
         </div>
 
-        {/* Budget Overview */}
+        {/* BUDGET CARD */}
         <button
           className="budget-mini"
           onClick={() =>
@@ -366,12 +524,19 @@ export default function Itinerary() {
             <span>Budget overview</span>
           </div>
 
-          <strong>{money(totalBudget)}</strong>
+          <strong>
+            {money(totalBudget)}
+          </strong>
 
           <div className="progress">
             <span
               style={{
-                width: `${budgetPercentage}%`,
+                width: `${Math.min(
+                  100,
+                  (activityTotal /
+                    Math.max(totalBudget, 1)) *
+                    100
+                )}%`,
               }}
             />
           </div>
@@ -379,19 +544,17 @@ export default function Itinerary() {
           <small>
             {totalBudget
               ? `${Math.round(
-                  (activityTotal / totalBudget) * 100
+                  (activityTotal / totalBudget) *
+                    100
                 )}% used by activities`
               : "Set a budget to track spending"}
           </small>
         </button>
-
       </div>
 
-      {/* ================= ITINERARY ================= */}
+      {/* DAY BY DAY PLAN */}
       <div className="builder-layout">
-
         <section>
-
           <div className="section-head">
             <div>
               <h2>Day-by-day plan</h2>
@@ -411,232 +574,242 @@ export default function Itinerary() {
             </button>
           </div>
 
-          {/* Empty itinerary */}
+          {/* EMPTY */}
           {!trip.stops?.length && (
             <div className="empty-state card">
               <MapPin size={28} />
 
-              <h3>Your itinerary is empty</h3>
+              <h3>
+                Your itinerary is empty
+              </h3>
 
-              <p>Start by adding a city.</p>
+              <p>
+                Start by adding a city.
+              </p>
 
               <button
                 className="btn btn-primary"
-                onClick={() => setCityOpen(true)}
+                onClick={() =>
+                  setCityOpen(true)
+                }
               >
                 Add first destination
               </button>
             </div>
           )}
 
-          {/* Stops */}
-          {trip.stops?.map((stop, index) => (
-            <div
-              className="stop-card"
-              key={stop.id}
-            >
+          {/* STOPS */}
+          {trip.stops?.map(
+            (stop, index) => (
+              <div
+                className="stop-card"
+                key={stop.id}
+              >
+                <div className="stop-head">
+                  <div className="stop-number">
+                    {index + 1}
+                  </div>
 
-              <div className="stop-head">
+                  <div>
+                    <span className="eyebrow">
+                      {stop.city?.country}
+                    </span>
 
-                <div className="stop-number">
-                  {index + 1}
+                    <h3>
+                      {stop.city?.name}
+                    </h3>
+
+                    <p>
+                      <CalendarDays size={14} />
+                      {" "}
+                      {stop.startDate} —{" "}
+                      {stop.endDate}
+                    </p>
+                  </div>
+
+                  <button
+                    className="icon-btn danger"
+                    onClick={() =>
+                      removeStop(stop.id)
+                    }
+                  >
+                    <Trash2 size={17} />
+                  </button>
                 </div>
 
-                <div>
-                  <span className="eyebrow">
-                    {stop.city?.country}
-                  </span>
+                {/* ACTIVITIES */}
+                <div className="activity-list">
+                  {stop.activities?.map(
+                    (stopActivity) => (
+                      <div
+                        className="activity-row"
+                        key={stopActivity.id}
+                      >
+                        <div className="activity-time">
+                          <Clock3 size={14} />
 
-                  <h3>{stop.city?.name}</h3>
+                          <span>
+                            {stopActivity.startTime ||
+                              "10:00"}
+                          </span>
+                        </div>
 
-                  <p>
-                    <CalendarDays size={14} />
-                    {stop.startDate} — {stop.endDate}
-                  </p>
-                </div>
+                        <div className="activity-dot" />
 
-                <button
-                  className="icon-btn danger"
-                  onClick={() =>
-                    removeStop(stop.id)
-                  }
-                >
-                  <Trash2 size={17} />
-                </button>
+                        <div className="activity-info">
+                          <strong>
+                            {stopActivity.activity?.name}
+                          </strong>
 
-              </div>
+                          <span>
+                            {stopActivity.activity
+                              ?.type || "Activity"}
+                            {" · "}
+                            {stopActivity.activity
+                              ?.durationMinutes || 0}{" "}
+                            min
+                          </span>
+                        </div>
 
-              {/* Activities */}
-              <div className="activity-list">
-
-                {stop.activities?.map(
-                  (stopActivity) => (
-                    <div
-                      className="activity-row"
-                      key={stopActivity.id}
-                    >
-
-                      <div className="activity-time">
-                        <Clock3 size={14} />
-
-                        <span>
-                          {stopActivity.startTime ||
-                            "10:00"}
-                        </span>
-                      </div>
-
-                      <div className="activity-dot" />
-
-                      <div className="activity-info">
-                        <strong>
-                          {stopActivity.activity?.name}
+                        <strong className="activity-cost">
+                          {money(
+                            stopActivity.estimatedCost ??
+                              stopActivity.activity
+                                ?.estimatedCost
+                          )}
                         </strong>
 
-                        <span>
-                          {stopActivity.activity?.type}
-                          {" · "}
-                          {stopActivity.activity
-                            ?.durationMinutes || 0} min
-                        </span>
+                        <button
+                          className="icon-btn danger"
+                          onClick={() =>
+                            removeActivity(
+                              stopActivity.id
+                            )
+                          }
+                        >
+                          <Trash2 size={15} />
+                        </button>
                       </div>
+                    )
+                  )}
 
-                      <strong className="activity-cost">
-                        {money(
-                          stopActivity.estimatedCost
-                        )}
-                      </strong>
-
-                      <button
-                        className="icon-btn danger"
-                        onClick={() =>
-                          removeActivity(
-                            stopActivity.id
-                          )
-                        }
-                      >
-                        <Trash2 size={15} />
-                      </button>
-
-                    </div>
-                  )
-                )}
-
-                <button
-                  className="add-activity"
-                  onClick={() =>
-                    setActivityStop(stop)
-                  }
-                >
-                  <Plus size={16} />
-                  Add activity to {stop.city?.name}
-                </button>
-
+                  <button
+                    className="add-activity"
+                    onClick={() =>
+                      setActivityStop(stop)
+                    }
+                  >
+                    <Plus size={16} />
+                    Add activity to{" "}
+                    {stop.city?.name}
+                  </button>
+                </div>
               </div>
-            </div>
-          ))}
-
+            )
+          )}
         </section>
       </div>
 
-      {/* ================= ADD CITY MODAL ================= */}
+      {/* ADD CITY MODAL */}
       <Modal
         open={cityOpen}
         title="Add a destination"
         onClose={() => setCityOpen(false)}
       >
-
         <p className="modal-sub">
-          Choose a city from the Java backend.
+          Choose a city from the backend.
         </p>
 
         <div className="modal-list">
+          {availableCities.length > 0 ? (
+            availableCities.map((city) => (
+              <button
+                className="select-card"
+                key={city.id}
+                onClick={() =>
+                  addStop(city)
+                }
+              >
+                <div>
+                  <strong>
+                    {city.name}
+                  </strong>
 
-          {availableCities.map((city) => (
-            <button
-              className="select-card"
-              key={city.id}
-              onClick={() => addStop(city)}
-            >
+                  <span>
+                    {city.country}
+                    {city.region
+                      ? ` · ${city.region}`
+                      : ""}
+                  </span>
+                </div>
 
-              <div>
-                <strong>{city.name}</strong>
-
-                <span>
-                  {city.country}
-                  {" · "}
-                  {city.region || ""}
-                </span>
-              </div>
-
-              <Plus size={18} />
-
-            </button>
-          ))}
-
+                <Plus size={18} />
+              </button>
+            ))
+          ) : (
+            <div className="empty-state">
+              <p>
+                No more cities available.
+              </p>
+            </div>
+          )}
         </div>
       </Modal>
 
-      {/* ================= ADD ACTIVITY MODAL ================= */}
+      {/* ADD ACTIVITY MODAL */}
       <Modal
         open={!!activityStop}
         title={`Activities in ${
           activityStop?.city?.name || ""
         }`}
-        onClose={() => setActivityStop(null)}
+        onClose={() =>
+          setActivityStop(null)
+        }
       >
-
         <div className="modal-list">
+          {cityActivities.length > 0 ? (
+            cityActivities.map(
+              (activity) => (
+                <button
+                  className="select-card"
+                  key={activity.id}
+                  onClick={() =>
+                    addActivity(
+                      activityStop,
+                      activity
+                    )
+                  }
+                >
+                  <div>
+                    <strong>
+                      {activity.name}
+                    </strong>
 
-          {activities
-            .filter(
-              (activity) =>
-                !activityStop?.city?.id ||
-                activity.city?.id ===
-                  activityStop.city.id
+                    <span>
+                      {activity.type ||
+                        "Activity"}
+                      {" · "}
+                      {activity.durationMinutes ||
+                        0} min
+                      {" · "}
+                      {money(
+                        activity.estimatedCost
+                      )}
+                    </span>
+                  </div>
+
+                  <Plus size={18} />
+                </button>
+              )
             )
-            .map((activity) => (
-              <button
-                className="select-card"
-                key={activity.id}
-                onClick={() =>
-                  addActivity(
-                    activityStop,
-                    activity
-                  )
-                }
-              >
-
-                <div>
-                  <strong>{activity.name}</strong>
-
-                  <span>
-                    {activity.type}
-                    {" · "}
-                    {activity.durationMinutes || 0} min
-                    {" · "}
-                    {money(activity.estimatedCost)}
-                  </span>
-                </div>
-
-                <Plus size={18} />
-
-              </button>
-            ))}
-
+          ) : (
+            <div className="empty-state">
+              <p>
+                No activities available for this city.
+              </p>
+            </div>
+          )}
         </div>
-
-        {!activities.some(
-          (activity) =>
-            activity.city?.id ===
-            activityStop?.city?.id
-        ) && (
-          <div className="empty-state">
-            <p>
-              No activities for this city.
-            </p>
-          </div>
-        )}
-
       </Modal>
     </div>
   );

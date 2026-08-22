@@ -1,317 +1,262 @@
-import React, { useEffect, useState } from "react";
-import { NavLink, Outlet, useNavigate } from "react-router-dom";
-import {
-  Compass,
-  LayoutDashboard,
-  Map,
-  PlusCircle,
-  CalendarDays,
-  Wallet,
-  Globe2,
-  User,
-  LogOut,
-  Menu,
-  X,
-  Sparkles,
-} from "lucide-react";
+import axios from "axios";
 
-import {
-  profileApi,
-  tripApi,
-  getApiError,
-} from "../services/api";
+// Backend API Base URL
+const API_BASE =
+  import.meta.env.VITE_API_URL || "http://localhost:8080/api";
 
-const nav = [
-  { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { to: "/trips", label: "My Trips", icon: Map },
-  { to: "/trips/create", label: "Plan New Trip", icon: PlusCircle },
-  { to: "/explore/cities", label: "Explore Cities", icon: Compass },
-  { to: "/explore/activities", label: "Activities", icon: Sparkles },
-  { type: "calendar", label: "Calendar", icon: CalendarDays },
-  { type: "budget", label: "Budget", icon: Wallet },
-];
+// Axios instance
+const api = axios.create({
+  baseURL: API_BASE,
+  headers: {
+    "Content-Type": "application/json",
+  },
+});
 
-export default function Layout() {
-  const [open, setOpen] = useState(false);
+// ===============================
+// REQUEST INTERCEPTOR
+// ===============================
+api.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem("gt_token");
 
-  const [user, setUser] = useState(() => {
-    try {
-      return JSON.parse(localStorage.getItem("gt_user")) || {};
-    } catch {
-      return {};
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
     }
-  });
 
-  const navigate = useNavigate();
+    return config;
+  },
+  (error) => Promise.reject(error)
+);
 
-  useEffect(() => {
-    profileApi
-      .get()
-      .then((response) => setUser(response.data))
-      .catch(() => {});
-  }, []);
+// ===============================
+// RESPONSE INTERCEPTOR
+// ===============================
+api.interceptors.response.use(
+  (response) => response,
 
-  // ============================
-  // OPEN CALENDAR
-  // ============================
-  const openCalendar = async () => {
-    try {
-      setOpen(false);
+  (error) => {
+    // Logout only for unauthorized protected APIs
+    if (
+      error.response?.status === 401 &&
+      !error.config?.url?.includes("/auth/")
+    ) {
+      localStorage.removeItem("gt_token");
+      localStorage.removeItem("gt_user");
+      localStorage.removeItem("gt_logged_in");
 
-      const response = await tripApi.getAll();
+      window.location.href = "/login";
+    }
 
-      // Handle normal array or Spring Page response
-      const trips = Array.isArray(response.data)
-        ? response.data
-        : response.data?.content || [];
+    return Promise.reject(error);
+  }
+);
 
-      if (trips.length === 0) {
-        alert("Please create a trip first.");
-        navigate("/trips/create");
-        return;
+// ===============================
+// AUTH API
+// ===============================
+export const authApi = {
+  login: (data) => api.post("/auth/login", data),
+
+  signup: (data) => api.post("/auth/signup", data),
+
+  forgotPassword: (data) =>
+    api.post("/auth/forgot-password", data),
+
+  resetPassword: (data) =>
+    api.post("/auth/reset-password", data),
+};
+
+// ===============================
+// TRIP API
+// ===============================
+export const tripApi = {
+  // Get all trips
+  getAll: () => api.get("/trips"),
+
+  // Get single trip
+  get: (id) => api.get(`/trips/${id}`),
+
+  // Create trip
+  create: (data) => api.post("/trips", data),
+
+  // Update trip
+  update: (id, data) =>
+    api.put(`/trips/${id}`, data),
+
+  // Delete trip
+  delete: (id) =>
+    api.delete(`/trips/${id}`),
+
+  // ===============================
+  // TRIP STOPS
+  // ===============================
+
+  addStop: (tripId, data) =>
+    api.post(`/trips/${tripId}/stops`, data),
+
+  deleteStop: (tripId, stopId) =>
+    api.delete(`/trips/${tripId}/stops/${stopId}`),
+
+  // ===============================
+  // TRIP ACTIVITIES
+  // ===============================
+
+  addActivity: (tripId, stopId, data) =>
+    api.post(
+      `/trips/${tripId}/stops/${stopId}/activities`,
+      data
+    ),
+
+  deleteActivity: (tripId, activityId) =>
+    api.delete(
+      `/trips/${tripId}/activities/${activityId}`
+    ),
+
+  // ===============================
+  // EXPENSES
+  // ===============================
+
+  addExpense: (tripId, data) =>
+    api.post(`/trips/${tripId}/expenses`, data),
+
+  // ===============================
+  // BUDGET
+  // ===============================
+
+  getBudget: (tripId) =>
+    api.get(`/trips/${tripId}/budget`),
+
+  saveBudget: (tripId, data) =>
+    api.put(`/trips/${tripId}/budget`, data),
+
+  // ===============================
+  // SHARE
+  // ===============================
+
+  share: (tripId) =>
+    api.post(`/trips/${tripId}/share`),
+
+  // ===============================
+  // COVER IMAGE
+  // ===============================
+
+  uploadCover: (tripId, file) => {
+    const formData = new FormData();
+
+    formData.append("file", file);
+
+    return api.post(
+      `/trips/${tripId}/cover`,
+      formData,
+      {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
       }
+    );
+  },
+};
 
-      navigate(`/trips/${trips[0].id}/calendar`);
-    } catch (error) {
-      alert(
-        getApiError(
-          error,
-          "Unable to open calendar."
-        )
-      );
-    }
-  };
+// ===============================
+// DASHBOARD API
+// ===============================
+export const dashboardApi = {
+  get: () => api.get("/dashboard"),
+};
 
-  // ============================
-  // OPEN BUDGET
-  // ============================
-  const openBudget = async () => {
-    try {
-      setOpen(false);
+// ===============================
+// PROFILE API
+// ===============================
+export const profileApi = {
+  get: () => api.get("/users/profile"),
 
-      const response = await tripApi.getAll();
+  update: (data) =>
+    api.put("/users/profile", data),
 
-      // Handle normal array or Spring Page response
-      const trips = Array.isArray(response.data)
-        ? response.data
-        : response.data?.content || [];
+  delete: () =>
+    api.delete("/users/profile"),
+};
 
-      if (trips.length === 0) {
-        alert("Please create a trip first.");
-        navigate("/trips/create");
-        return;
-      }
+// ===============================
+// SEARCH API
+// ===============================
+export const searchApi = {
+  // Search cities
+  cities: (search = "") =>
+    api.get("/cities", {
+      params: {
+        search,
+      },
+    }),
 
-      navigate(`/trips/${trips[0].id}/budget`);
-    } catch (error) {
-      alert(
-        getApiError(
-          error,
-          "Unable to open budget."
-        )
-      );
-    }
-  };
+  // Search activities
+  activities: ({
+    cityId,
+    search = "",
+    type,
+  } = {}) =>
+    api.get("/activities", {
+      params: {
+        cityId,
+        search,
+        type,
+      },
+    }),
+};
 
-  // ============================
-  // LOGOUT
-  // ============================
-  const logout = () => {
-    localStorage.removeItem("gt_token");
-    localStorage.removeItem("gt_user");
-    localStorage.removeItem("gt_logged_in");
+// ===============================
+// PUBLIC / SHARE API
+// ===============================
+export const publicApi = {
+  createShare: (tripId) =>
+    api.post(`/public/trips/${tripId}/share`),
 
-    navigate("/login", {
-      replace: true,
-    });
-  };
+  getSharedTrip: (token) =>
+    api.get(`/public/trips/${token}`),
+};
 
-  const initial = (user?.name || "U")
-    .charAt(0)
-    .toUpperCase();
-
+// ===============================
+// ERROR HELPER
+// ===============================
+export const getApiError = (
+  error,
+  fallback = "Something went wrong"
+) => {
   return (
-    <div className="app-shell">
-      {/* ================= SIDEBAR ================= */}
-      <aside className={`sidebar ${open ? "open" : ""}`}>
-        <div className="brand">
-          <div className="brand-mark">
-            <Globe2 size={22} />
-          </div>
-
-          <div>
-            <strong>GlobeTrotter</strong>
-            <span>Travel smarter</span>
-          </div>
-
-          <button
-            className="mobile-close"
-            onClick={() => setOpen(false)}
-          >
-            <X size={20} />
-          </button>
-        </div>
-
-        <div className="sidebar-label">
-          WORKSPACE
-        </div>
-
-        <nav>
-          {nav.map(
-            ({
-              to,
-              type,
-              label,
-              icon: Icon,
-            }, i) => {
-              // CALENDAR BUTTON
-              if (type === "calendar") {
-                return (
-                  <button
-                    key="calendar"
-                    type="button"
-                    className="nav-item"
-                    onClick={openCalendar}
-                  >
-                    <Icon size={18} />
-                    <span>{label}</span>
-                  </button>
-                );
-              }
-
-              // BUDGET BUTTON
-              if (type === "budget") {
-                return (
-                  <button
-                    key="budget"
-                    type="button"
-                    className="nav-item"
-                    onClick={openBudget}
-                  >
-                    <Icon size={18} />
-                    <span>{label}</span>
-                  </button>
-                );
-              }
-
-              // NORMAL LINKS
-              return (
-                <NavLink
-                  key={`${label}-${to}`}
-                  to={to}
-                  className={({ isActive }) =>
-                    `nav-item ${isActive ? "active" : ""}`
-                  }
-                  onClick={() => setOpen(false)}
-                >
-                  <Icon size={18} />
-
-                  <span>{label}</span>
-
-                  {i === 2 && (
-                    <span className="nav-plus">
-                      +
-                    </span>
-                  )}
-                </NavLink>
-              );
-            }
-          )}
-        </nav>
-
-        <div className="sidebar-spacer" />
-
-        {/* PROFILE */}
-        <NavLink
-          to="/profile"
-          className={({ isActive }) =>
-            `nav-item ${isActive ? "active" : ""}`
-          }
-          onClick={() => setOpen(false)}
-        >
-          <User size={18} />
-          <span>Profile</span>
-        </NavLink>
-
-        {/* LOGOUT */}
-        <button
-          className="nav-item logout"
-          onClick={logout}
-        >
-          <LogOut size={18} />
-          <span>Logout</span>
-        </button>
-
-        {/* PROMO */}
-        <div className="sidebar-promo">
-          <div className="promo-icon">
-            <Sparkles size={17} />
-          </div>
-
-          <strong>Plan without limits</strong>
-
-          <span>
-            Build your next unforgettable journey.
-          </span>
-        </div>
-      </aside>
-
-      {/* ================= MAIN ================= */}
-      <main className="main">
-        <header className="topbar">
-          <button
-            className="mobile-menu"
-            onClick={() => setOpen(true)}
-          >
-            <Menu />
-          </button>
-
-          <div className="top-search">
-            <Compass size={17} />
-
-            <input
-              placeholder="Search trips, cities, activities..."
-              onKeyDown={(event) => {
-                if (event.key === "Enter") {
-                  navigate("/explore/cities");
-                }
-              }}
-            />
-          </div>
-
-          <div className="top-actions">
-            <button
-              className="icon-btn"
-              type="button"
-            >
-              🔔
-            </button>
-
-            <button
-              className="profile-mini"
-              onClick={() => navigate("/profile")}
-            >
-              <div className="avatar">
-                {initial}
-              </div>
-
-              <div className="profile-mini-text">
-                <strong>
-                  {user?.name || "Traveler"}
-                </strong>
-
-                <span>
-                  {user?.role || "USER"}
-                </span>
-              </div>
-            </button>
-          </div>
-        </header>
-
-        <div className="page">
-          <Outlet />
-        </div>
-      </main>
-    </div>
+    error?.response?.data?.message ||
+    error?.response?.data?.error ||
+    (typeof error?.response?.data === "string"
+      ? error.response.data
+      : null) ||
+    error?.message ||
+    fallback
   );
-}
+};
+
+// ===============================
+// ABSOLUTE URL HELPER
+// ===============================
+export const absoluteUrl = (value) => {
+  if (!value) return "";
+
+  if (
+    value.startsWith("http://") ||
+    value.startsWith("https://")
+  ) {
+    return value;
+  }
+
+  // Remove /api from API base
+  const origin = API_BASE.replace(/\/api\/?$/, "");
+
+  return `${origin}${
+    value.startsWith("/")
+      ? value
+      : `/${value}`
+  }`;
+};
+
+// ===============================
+// DEFAULT EXPORT
+// ===============================
+export default api;
