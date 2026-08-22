@@ -24,6 +24,17 @@ export const CreateTrip = () => {
   });
   const [error, setError] = useState('');
 
+  // Get today's date in YYYY-MM-DD format for input min attribute
+  const getTodayDate = () => {
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const day = String(today.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  const todayDate = getTodayDate();
+
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     const dest = params.get('destination');
@@ -66,10 +77,26 @@ export const CreateTrip = () => {
         setError('Please select both Start Date and End Date.');
         return;
       }
-      if (new Date(formData.endDate) < new Date(formData.startDate)) {
+
+      const startDate = new Date(formData.startDate);
+      const endDate = new Date(formData.endDate);
+      const today = new Date(todayDate);
+
+      if (startDate < today) {
+        setError('Start date cannot be in the past. Please select a future date.');
+        return;
+      }
+
+      if (endDate < startDate) {
         setError('End date cannot be earlier than start date. Please select a valid date range.');
         return;
       }
+
+      if (endDate.getTime() === startDate.getTime()) {
+        setError('End date must be after the start date. Trips should span at least one day.');
+        return;
+      }
+
       if (Number(formData.totalBudget) <= 0) {
         setError('Total budget limit must be a positive amount.');
         return;
@@ -87,7 +114,16 @@ export const CreateTrip = () => {
       return;
     }
 
-    if (new Date(formData.endDate) < new Date(formData.startDate)) {
+    const startDate = new Date(formData.startDate);
+    const endDate = new Date(formData.endDate);
+    const today = new Date(todayDate);
+
+    if (startDate < today) {
+      setError('Start date cannot be in the past. Please select a future date.');
+      return;
+    }
+
+    if (endDate < startDate) {
       setError('End date cannot be earlier than start date.');
       return;
     }
@@ -214,23 +250,33 @@ export const CreateTrip = () => {
         {step === 2 && (
           <div className="space-y-6 animate-fade-in">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <Input
-                label="Start Date *"
-                type="date"
-                name="startDate"
-                value={formData.startDate}
-                onChange={handleChange}
-                required
-              />
-              <Input
-                label="End Date *"
-                type="date"
-                name="endDate"
-                min={formData.startDate || ''}
-                value={formData.endDate}
-                onChange={handleChange}
-                required
-              />
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-2">Start Date *</label>
+                <input
+                  type="date"
+                  name="startDate"
+                  min={todayDate}
+                  value={formData.startDate}
+                  onChange={handleChange}
+                  className="w-full px-4 py-2.5 bg-slate-900 border border-slate-800 rounded-xl text-sm text-slate-100 focus:ring-2 focus:ring-brand-500 focus:border-transparent"
+                  required
+                />
+                <p className="text-[10px] text-slate-500 mt-1">Select a date from today onwards</p>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-2">End Date *</label>
+                <input
+                  type="date"
+                  name="endDate"
+                  min={formData.startDate || todayDate}
+                  value={formData.endDate}
+                  onChange={handleChange}
+                  className="w-full px-4 py-2.5 bg-slate-900 border border-slate-800 rounded-xl text-sm text-slate-100 focus:ring-2 focus:ring-brand-500 focus:border-transparent"
+                  required
+                />
+                <p className="text-[10px] text-slate-500 mt-1">Must be after the start date</p>
+              </div>
             </div>
 
             <Input
@@ -238,6 +284,7 @@ export const CreateTrip = () => {
               type="number"
               name="totalBudget"
               placeholder="2500"
+              min="1"
               value={formData.totalBudget}
               onChange={handleChange}
               required

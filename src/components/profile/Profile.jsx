@@ -42,9 +42,21 @@ export const Profile = () => {
     }
   }, [user]);
 
-  // Calculate statistics
+  // Calculate statistics from trips data
   const tripsCount = trips?.length || 0;
-  const countriesVisited = user?.countriesVisited || 0;
+  
+  // Extract unique countries from trips
+  const countriesVisited = trips && trips.length > 0
+    ? new Set(
+        trips
+          .map((trip) => {
+            // Extract country from destination (format: "City, Country")
+            const parts = trip.destination?.split(',');
+            return parts?.[1]?.trim() || null;
+          })
+          .filter(Boolean) // Remove null/undefined
+      ).size
+    : 0;
 
   // Open file picker
   const handlePhotoClick = () => {
@@ -269,16 +281,26 @@ export const Profile = () => {
 
             </div>
 
-            {/* Dynamic Stats */}
+            {/* Dynamic Stats - Calculated from Trips */}
             <div className="flex flex-wrap justify-center sm:justify-start gap-2 pt-1">
 
-              <Badge variant="brand">
-                {countriesVisited} Countries Visited
-              </Badge>
+              {countriesVisited > 0 && (
+                <Badge variant="brand">
+                  {countriesVisited} {countriesVisited === 1 ? 'Country' : 'Countries'} Visited
+                </Badge>
+              )}
 
-              <Badge variant="sky">
-                {tripsCount} Total Trips
-              </Badge>
+              {tripsCount > 0 && (
+                <Badge variant="sky">
+                  {tripsCount} Total {tripsCount === 1 ? 'Trip' : 'Trips'}
+                </Badge>
+              )}
+
+              {tripsCount === 0 && countriesVisited === 0 && (
+                <p className="text-xs text-slate-400 italic">
+                  No trips yet. Start planning!
+                </p>
+              )}
 
             </div>
 
