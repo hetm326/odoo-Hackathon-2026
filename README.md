@@ -1,31 +1,61 @@
-# GlobeTrotter Frontend
 
-Hackathon-ready React + Vite frontend for the GlobeTrotter travel planning problem.
+🌍 GlobeTrotter
 
-## Run
+GlobeTrotter is a smart travel planning web application developed for the Odoo Hackathon 2026.
 
-```bash
+It helps users easily plan trips, manage destinations, activities, budgets, and share their travel plans. ✈️🗺️
+
+✨ Features:-
+🔐 Login & Signup
+🗺️ Create & Manage Trips
+📍 Add Multiple Destinations
+🎯 Add Activities
+📅 Day-wise Itinerary
+💰 Budget & Expense Management
+🔗 Share Trips
+👤 User Profile
+
+🛠️ Technologies
+
+🎨 Frontend:-
+⚛️ React.js
+🎨 Tailwind CSS
+🔗 Axios
+
+☕ Backend:-
+
+☕ Java
+🌱 Spring Boot
+🔒 Spring Security
+🔑 JWT Authentication
+
+🗄️ Database:-
+🐬 MySQL
+
+
+🚀 How to Run
+Frontend:-
 npm install
 npm run dev
-```
 
-Open the URL shown by Vite, normally http://localhost:5173.
+🌐 Frontend:
+http://localhost:3000
 
-## Demo Login
+☕ Backend:-
+Make sure MySQL is running, then start the Spring Boot backend
 
-Any email/password works in this mock frontend. The prefilled account is:
+mvn spring-boot:run
 
-demo@globetrotter.app
-123456
+🌐 Backend:
+http://localhost:8080
 
-## Java Spring Boot integration
-
-Set:
-
-VITE_API_URL=http://localhost:8080/api
-
-The Axios service is already prepared in `src/services/api.js`.
-
-## Main demo flow
-
-Login → Dashboard → Plan New Trip → Add Destinations → Add Activities → Itinerary → Budget → Complete → Share
+🔗 Frontend & Backend Connection:-
+👤 User
+   ↓
+⚛️ React Frontend
+   ↓
+🔗 Axios
+   ↓
+☕ Spring Boot REST API
+   ↓
+🐬 MySQL Database
